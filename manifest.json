@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "DOMShot",
+  "version": "1.0",
+  "description": "Screenshot DOM elements with precision and ease",
+  "icons": {
+    "16": "DOMShot_Logo.png",
+    "32": "DOMShot_Logo.png",
+    "48": "DOMShot_Logo.png",
+    "128": "DOMShot_Logo.png"
+  },
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "DOMShot",
+    "default_icon": {
+      "16": "DOMShot_Logo.png",
+      "32": "DOMShot_Logo.png",
+      "48": "DOMShot_Logo.png",
+      "128": "DOMShot_Logo.png"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["DOMShot.svg"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
