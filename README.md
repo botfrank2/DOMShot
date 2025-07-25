@@ -1,58 +1,67 @@
-# DOM Element Selector Chrome Extension
+# DOMShot
 
-A Chrome extension that allows you to highlight and download DOM elements from any webpage.
+**Screenshot DOM elements with precision and ease**
+
+DOMShot is a Chrome extension that allows you to capture pixel-perfect screenshots of specific DOM elements on any webpage. Simply enable the selector, click on any element, and get a clean, cropped screenshot instantly.
 
 ## Features
 
-- **Real-time highlighting**: Hover over any element to see it highlighted with a red border
-- **Element selection**: Click on any element to select it (highlighted in teal)
-- **Element information**: Shows element tag name, ID, and classes in a tooltip
-- **Download functionality**: Download selected elements as both JSON (with metadata) and HTML files
-- **Non-intrusive UI**: Control panel appears in the top-right corner of webpages
+- **🎯 Precise Element Selection**: Click on any DOM element to select it with visual feedback
+- **📸 Instant Screenshots**: Capture clean, cropped screenshots of selected elements
+- **🎨 Non-Intrusive Interface**: Minimal UI that stays out of your way
+- **⚡ Lightning Fast**: No complex setup - just enable, select, and capture
+- **🧹 Clean Output**: Screenshots exclude selection highlights and extension UI
+- **💾 Auto-Download**: Screenshots automatically download with timestamped filenames
+- **🔧 Smart Cropping**: Automatically crops to element boundaries with device pixel ratio support
 
 ## Installation
 
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable "Developer mode" in the top-right corner
-3. Click "Load unpacked" and select the folder containing these extension files
-4. The extension will appear in your extensions list and toolbar
+3. Click "Load unpacked" and select the DOMShot extension folder
+4. The DOMShot extension will appear in your extensions list and toolbar
 
 ## How to Use
 
-1. Navigate to any webpage
-2. Look for the "DOM Element Selector" control panel in the top-right corner
-3. Click "Enable Selector" to activate the tool
-4. Hover over any element on the page to see it highlighted
-5. Click on an element to select it (it will turn teal)
-6. Click "Download Selected" to save the element
-7. Use "Clear Selection" to deselect the current element
-8. Click "Disable Selector" when you're done
+1. **Navigate** to any webpage
+2. **Enable** the selector using the toggle switch in the DOMShot panel
+3. **Click** on any element you want to screenshot - it will be highlighted in blue
+4. **Capture** by clicking the "📸 Take Screenshot" button
+5. **Download** happens automatically with filename format: `element-screenshot-[timestamp].png`
 
-## Downloaded Files
+The extension automatically:
+- Hides the selection highlight during capture
+- Hides the DOMShot panel during capture  
+- Clears the selection after taking a screenshot
+- Scrolls the element into view if needed
 
-When you download a selected element, you'll get two files:
+## Interface
 
-1. **JSON file** (`dom-element-[timestamp].json`): Contains complete element metadata including:
-   - HTML content
-   - Tag name, ID, and classes
-   - All attributes
-   - Computed CSS styles
-   - Text content
-   - Timestamp and source URL
-
-2. **HTML file** (`dom-element-[timestamp].html`): Contains just the raw HTML of the element
-
-## Files Structure
-
-- `manifest.json` - Extension configuration
-- `content.js` - Main functionality script
-- `styles.css` - Styling for highlights and UI
-- `popup.html` - Extension popup interface
-- `README.md` - This documentation
+The DOMShot panel features:
+- **DOMShot Logo & Branding**: Clean, professional interface
+- **Enable/Disable Toggle**: Modern switch to activate the selector
+- **Screenshot Button**: Only appears when an element is selected
+- **Auto-Hide Logic**: Button disappears when no element is selected
 
 ## Technical Details
 
-- Uses Manifest V3 for Chrome extensions
-- Requires permissions: `activeTab`, `downloads`
-- Works on all websites (`<all_urls>`)
-- Lightweight with no external dependencies
+- **Manifest V3** compatible Chrome extension
+- **Permissions**: `activeTab`, `downloads`, `tabs`
+- **Works on**: All websites (`<all_urls>`)
+- **File Format**: PNG screenshots with lossless quality
+- **Smart Cropping**: Handles device pixel ratios and boundary detection
+- **Memory Efficient**: Minimal footprint with no external dependencies
+
+## File Structure
+
+- `manifest.json` - Extension configuration and metadata
+- `content.js` - Main functionality and DOM interaction logic
+- `background.js` - Screenshot capture and download handling  
+- `styles.css` - UI styling and visual feedback
+- `popup.html` - Extension popup interface
+- `DOMShot.svg` - Logo for in-page branding
+- `DOMShot_Logo.png` - Extension icon and favicon
+
+---
+
+**DOMShot** - Making DOM element screenshots simple and precise.
