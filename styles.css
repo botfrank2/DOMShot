@@ -27,15 +27,30 @@
 
 .dom-selector-controls {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  bottom: 20px;
+  left: 20px;
   background: white;
   border: 2px solid #ccc;
   border-radius: 8px;
-  padding: 12px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   z-index: 10001;
   font-family: Arial, sans-serif;
+}
+
+.dom-selector-controls .icon-only-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.dom-selector-controls.minimized {
+  border-radius: 100% !important;
+  height:40px;
+}
+
+.dom-selector-controls .expanded-state {
+  padding: 12px;
   width: 200px;
 }
 
@@ -110,4 +125,23 @@ input:checked + .slider {
 
 input:checked + .slider:before {
   transform: translateX(20px);
+}
+
+/* Prevent text selection when selector is active */
+body.dom-selector-active {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Change cursor to indicate selection mode */
+body.dom-selector-active * {
+  cursor: crosshair !important;
+}
+
+/* Keep plugin controls interactive */
+body.dom-selector-active .dom-selector-controls,
+body.dom-selector-active .dom-selector-controls * {
+  cursor: pointer !important;
 }
