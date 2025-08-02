@@ -3,97 +3,65 @@ class DOMElementSelector {
     this.isActive = false;
     this.selectedElement = null;
     this.controls = null;
+    this.screenshotButton = null;
     this.init();
   }
 
   init() {
-    this.createControls();
     this.bindEvents();
+    this.setupMessageListener();
+    this.createScreenshotButton();
   }
 
-  createControls() {
-    this.controls = document.createElement('div');
-    this.controls.className = 'dom-selector-controls';
-    this.controls.innerHTML = `
-      <div class="icon-only-state">
-        <img src="${chrome.runtime.getURL('DOMShot.svg')}" style="width: 40px; height: 40px;">
-      </div>
-      <div class="expanded-state" style="display: none;">
-        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
-          <img src="${chrome.runtime.getURL('DOMShot.svg')}" style="width: 20px; height: 20px; margin-right: 6px;">
-          <span style="font-weight: bold; font-size: 14px; color: #333;">DOMShot</span>
-        </div>
-        <div style="display: flex; align-items: center; justify-content: space-between">
-          <span style="font-size: 14px;">Enable Selector</span>
-          <label class="switch">
-            <input type="checkbox" id="toggle-selector">
-            <span class="slider"></span>
-          </label>
-        </div>
-        <button class="dom-selector-button screenshot-btn" id="download-element" style="display: none">📸 Take Screenshot</button>
-      </div>
-    `;
-    document.body.appendChild(this.controls);
-    this.controls.classList.add('minimized'); // Start in minimized state
-    this.setupHoverEvents();
-  }
-
-  setupHoverEvents() {
-    const iconOnly = this.controls.querySelector('.icon-only-state');
-    const expanded = this.controls.querySelector('.expanded-state');
-
-    this.controls.addEventListener('mouseenter', () => {
-      if (!this.isActive) {
-        iconOnly.style.display = 'none';
-        expanded.style.display = 'block';
-        this.controls.classList.remove('minimized');
-      }
-    });
-
-    this.controls.addEventListener('mouseleave', () => {
-      if (!this.isActive) {
-        iconOnly.style.display = 'block';
-        expanded.style.display = 'none';
-        this.controls.classList.add('minimized');
+  setupMessageListener() {
+    // Listen for messages from popup
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      switch (message.action) {
+        case 'getState':
+          sendResponse({
+            isActive: this.isActive,
+            hasSelectedElement: !!this.selectedElement
+          });
+          break;
+          
+        case 'toggleSelector':
+          this.isActive = message.isActive;
+          this.toggleSelector();
+          sendResponse({ success: true });
+          break;
+          
+        case 'downloadElement':
+          if (this.selectedElement) {
+            this.downloadSelectedElement();
+            sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false, error: 'No element selected' });
+          }
+          break;
+          
+        default:
+          sendResponse({ success: false, error: 'Unknown action' });
       }
     });
   }
 
   bindEvents() {
-    const toggleBtn = document.getElementById('toggle-selector');
-    const downloadBtn = document.getElementById('download-element');
-
-    toggleBtn.addEventListener('change', () => this.toggleSelector());
-    downloadBtn.addEventListener('click', () => this.downloadSelectedElement());
-
     document.addEventListener('mouseover', (e) => this.handleMouseOver(e));
     document.addEventListener('mouseout', (e) => this.handleMouseOut(e));
     document.addEventListener('click', (e) => this.handleClick(e), true); // Use capture phase
   }
 
   toggleSelector() {
-    const toggleBtn = document.getElementById('toggle-selector');
-    const iconOnly = this.controls.querySelector('.icon-only-state');
-    const expanded = this.controls.querySelector('.expanded-state');
-    
-    this.isActive = toggleBtn.checked;
-    
     if (this.isActive) {
-      // Always show expanded state when enabled
-      iconOnly.style.display = 'none';
-      expanded.style.display = 'block';
-      this.controls.classList.remove('minimized');
       document.body.classList.add('dom-selector-active');
-      this.updateButtonVisibility();
     } else {
-      // Back to icon-only state when disabled
-      iconOnly.style.display = 'block';
-      expanded.style.display = 'none';
-      this.controls.classList.add('minimized');
       document.body.classList.remove('dom-selector-active');
       this.clearHighlight();
       this.clearSelection();
-      this.updateButtonVisibility();
+      // Hide screenshot button when selector is disabled
+      if (this.screenshotButton) {
+        this.screenshotButton.style.display = 'none';
+      }
     }
   }
 
@@ -129,13 +97,72 @@ class DOMElementSelector {
     this.selectedElement = e.target;
     e.target.classList.add('dom-selector-selected');
     
-    this.updateButtonVisibility();
+    // Position and show screenshot button
+    this.positionScreenshotButton();
+    
+    // Notify popup that element is selected
+    chrome.runtime.sendMessage({ action: 'elementSelected' });
+  }
+
+  createScreenshotButton() {
+    this.screenshotButton = document.createElement('button');
+    this.screenshotButton.textContent = '📸 Take Screenshot';
+    this.screenshotButton.style.cssText = `
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #5dade2;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      z-index: 2147483647;
+      display: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      white-space: nowrap;
+      transition: background-color 0.2s ease;
+    `;
+    
+    // Add hover effect
+    this.screenshotButton.addEventListener('mouseenter', () => {
+      this.screenshotButton.style.background = '#4a90c2';
+      this.screenshotButton.style.cursor = 'pointer';
+    });
+    
+    this.screenshotButton.addEventListener('mouseleave', () => {
+      this.screenshotButton.style.background = '#5dade2';
+    });
+    
+    this.screenshotButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.downloadSelectedElement();
+    });
+    
+    document.body.appendChild(this.screenshotButton);
+  }
+
+  positionScreenshotButton() {
+    if (!this.selectedElement || !this.screenshotButton) return;
+    
+    const rect = this.selectedElement.getBoundingClientRect();
+    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // Position button inside selected element with 8px margin from top
+    this.screenshotButton.style.left = (rect.left + scrollX + rect.width / 2) + 'px';
+    this.screenshotButton.style.top = (rect.top + scrollY + 8) + 'px';
+    this.screenshotButton.style.display = 'block';
   }
 
   isControlElement(element) {
-    return element.closest('.dom-selector-controls');
+    return element === this.screenshotButton;
   }
-
 
   clearHighlight() {
     document.querySelectorAll('.dom-selector-highlight').forEach(el => {
@@ -147,22 +174,14 @@ class DOMElementSelector {
     if (this.selectedElement) {
       this.selectedElement.classList.remove('dom-selector-selected');
       this.selectedElement = null;
-      this.updateButtonVisibility();
-    }
-  }
-
-  updateButtonVisibility() {
-    const downloadBtn = document.getElementById('download-element');
-    
-    if (!this.isActive) {
-      // Selector disabled - hide button
-      downloadBtn.style.display = 'none';
-    } else if (this.selectedElement) {
-      // Element selected - show button
-      downloadBtn.style.display = 'block';
-    } else {
-      // Selector active but no selection - hide button
-      downloadBtn.style.display = 'none';
+      
+      // Hide screenshot button
+      if (this.screenshotButton) {
+        this.screenshotButton.style.display = 'none';
+      }
+      
+      // Notify popup that element is deselected
+      chrome.runtime.sendMessage({ action: 'elementDeselected' });
     }
   }
 
@@ -173,16 +192,23 @@ class DOMElementSelector {
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
 
-    // Hide plugin controls and remove green background before screenshot
-    this.controls.style.display = 'none';
+    // Remove green background before screenshot
     this.selectedElement.classList.remove('dom-selector-selected');
+    
+    // Hide screenshot button during capture
+    if (this.screenshotButton) {
+      this.screenshotButton.style.display = 'none';
+    }
     
     // Disable hover interactions during screenshot
     this.disableHoverEffects();
+    
+    // Hide all content outside the selected element
+    this.isolateSelectedElement();
 
     // Check if element is larger than viewport
     if (rect.height > viewportHeight || rect.width > viewportWidth) {
-      this.captureElementInSections(rect);
+      this.captureElementInSections();
     } else {
       // Use original single screenshot method
       this.selectedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -190,38 +216,55 @@ class DOMElementSelector {
       setTimeout(() => {
         if (!chrome || !chrome.runtime) return;
 
+        // Get fresh coordinates after scroll
+        const updatedRect = this.selectedElement.getBoundingClientRect();
+
         chrome.runtime.sendMessage({ action: 'captureElement' }, (response) => {
-          this.controls.style.display = 'block';
           this.selectedElement.classList.add('dom-selector-selected');
           this.enableHoverEffects();
+          this.restoreHiddenElements();
+          
+          // Show screenshot button again
+          if (this.screenshotButton) {
+            this.screenshotButton.style.display = 'block';
+          }
           
           if (chrome.runtime.lastError || !response || response.error || !response.dataUrl) {
             return;
           }
 
-          this.cropAndDownloadImage(response.dataUrl, rect);
+          this.cropAndDownloadImage(response.dataUrl, updatedRect);
         });
       }, 500);
     }
   }
 
-  async captureElementInSections(elementRect) {
+  async captureElementInSections() {
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     const originalScrollX = window.scrollX;
     const originalScrollY = window.scrollY;
 
+    // First, scroll the element into view to get accurate positioning
+    this.selectedElement.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'start' });
+    
+    // Wait for scroll to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Get fresh element coordinates after scroll
+    const freshRect = this.selectedElement.getBoundingClientRect();
+    
     // Get element's position relative to document
-    const elementTop = elementRect.top + window.scrollY;
-    const elementLeft = elementRect.left + window.scrollX;
+    const elementTop = freshRect.top + window.scrollY;
+    const elementLeft = freshRect.left + window.scrollX;
 
     // Calculate how many sections we need with some overlap to avoid edge issues
     const overlapPixels = 50; // Overlap sections by 50px to ensure no edges are missed
     const effectiveViewportWidth = viewportWidth - overlapPixels;
     const effectiveViewportHeight = viewportHeight - overlapPixels;
     
-    const sectionsX = Math.ceil(elementRect.width / effectiveViewportWidth);
-    const sectionsY = Math.ceil(elementRect.height / effectiveViewportHeight);
+    const sectionsX = Math.ceil(freshRect.width / effectiveViewportWidth);
+    const sectionsY = Math.ceil(freshRect.height / effectiveViewportHeight);
     
     const screenshots = [];
 
@@ -235,7 +278,7 @@ class DOMElementSelector {
           
           // For the last row, ensure we capture the bottom by scrolling to show the element's bottom edge
           if (row === sectionsY - 1) {
-            const elementBottom = elementTop + elementRect.height;
+            const elementBottom = elementTop + freshRect.height;
             scrollY = elementBottom - effectiveViewportHeight;
             // Ensure we don't scroll to negative values, but allow the element bottom to be visible
             scrollY = Math.max(0, scrollY);
@@ -243,7 +286,7 @@ class DOMElementSelector {
           
           // For the last column, ensure we capture the right edge
           if (col === sectionsX - 1) {
-            const elementRight = elementLeft + elementRect.width;
+            const elementRight = elementLeft + freshRect.width;
             scrollX = Math.max(0, elementRight - effectiveViewportWidth);
           }
           
@@ -285,20 +328,30 @@ class DOMElementSelector {
       // Restore original scroll position
       window.scrollTo(originalScrollX, originalScrollY);
       
-      // Show controls again
-      this.controls.style.display = 'block';
+      // Restore element state
       this.selectedElement.classList.add('dom-selector-selected');
       this.enableHoverEffects();
+      this.restoreHiddenElements();
+      
+      // Show screenshot button again
+      if (this.screenshotButton) {
+        this.screenshotButton.style.display = 'block';
+      }
 
       // Stitch screenshots together
-      this.stitchScreenshots(screenshots, elementRect);
+      this.stitchScreenshots(screenshots, freshRect);
       
     } catch (error) {
       // Restore state on error
       window.scrollTo(originalScrollX, originalScrollY);
-      this.controls.style.display = 'block';
       this.selectedElement.classList.add('dom-selector-selected');
       this.enableHoverEffects();
+      this.restoreHiddenElements();
+      
+      // Show screenshot button again
+      if (this.screenshotButton) {
+        this.screenshotButton.style.display = 'block';
+      }
     }
   }
 
@@ -409,25 +462,165 @@ class DOMElementSelector {
     });
   }
 
+  isolateSelectedElement() {
+    if (!this.selectedElement) return;
+
+    this.hiddenElements = [];
+    
+    // Find all elements that are not related to the selected element
+    const allElements = document.querySelectorAll('*');
+    
+    allElements.forEach(element => {
+      // Skip the selected element itself
+      if (element === this.selectedElement) {
+        return;
+      }
+      
+      // Skip descendants of the selected element (children, grandchildren, etc.)
+      if (this.selectedElement.contains(element)) {
+        return;
+      }
+      
+      // Skip ancestors of the selected element (parents, grandparents, etc.)
+      if (element.contains(this.selectedElement)) {
+        return;
+      }
+      
+      // Skip our screenshot button
+      if (element === this.screenshotButton) {
+        return;
+      }
+      
+      // Hide everything else (siblings and unrelated elements)
+      const computedStyle = window.getComputedStyle(element);
+      if (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden') {
+        this.hiddenElements.push({
+          element: element,
+          originalVisibility: element.style.visibility,
+          originalOpacity: element.style.opacity,
+          originalBackground: element.style.background
+        });
+        element.style.visibility = 'hidden';
+      }
+    });
+    
+    // Don't change body background - keep it as is
+    this.originalBodyBackground = document.body.style.background;
+  }
+
+  restoreHiddenElements() {
+    // Restore visibility of all hidden elements
+    if (this.hiddenElements) {
+      this.hiddenElements.forEach(item => {
+        // Restore visibility
+        if (item.originalVisibility) {
+          item.element.style.visibility = item.originalVisibility;
+        } else {
+          item.element.style.visibility = '';
+        }
+        
+        // Restore opacity
+        if (item.originalOpacity) {
+          item.element.style.opacity = item.originalOpacity;
+        }
+        
+        // Restore background
+        if (item.originalBackground) {
+          item.element.style.background = item.originalBackground;
+        }
+      });
+      this.hiddenElements = [];
+    }
+    
+    // Restore original body background (though we don't change it)
+    if (this.originalBodyBackground !== undefined) {
+      document.body.style.background = this.originalBodyBackground;
+      this.originalBodyBackground = undefined;
+    }
+  }
+
   disableHoverEffects() {
-    // Add a CSS rule to disable all hover effects
+    // Add a CSS rule to disable all hover effects and hide fixed elements
     if (!this.hoverDisableStyle) {
       this.hoverDisableStyle = document.createElement('style');
+      
+      // Build CSS to exclude selected element and its hierarchy
+      let selectedElementExclusion = '';
+      if (this.selectedElement) {
+        // Generate a unique class name for the selected element
+        const uniqueClass = 'dom-selected-preserve-' + Date.now();
+        this.selectedElement.classList.add(uniqueClass);
+        this.preserveClass = uniqueClass;
+        
+        selectedElementExclusion = `
+        /* Preserve selected element and its ancestors/descendants */
+        .${uniqueClass},
+        .${uniqueClass} *,
+        .${uniqueClass} * {
+          visibility: visible !important;
+        }
+        `;
+      }
+      
       this.hoverDisableStyle.textContent = `
         *:hover, 
         *:focus, 
         *:active {
           outline: none !important;
           border-color: inherit !important;
-          background-color: inherit !important;
-          color: inherit !important;
           box-shadow: none !important;
           transform: none !important;
           opacity: inherit !important;
         }
+        
+        /* Hide fixed position elements that might interfere with screenshots */
+        *[style*="position: fixed"],
+        *[style*="position:fixed"] {
+          visibility: hidden !important;
+        }
+        
+        /* Also hide elements with fixed position via CSS classes */
+        .fixed,
+        .position-fixed,
+        .navbar-fixed,
+        .header-fixed,
+        .sticky-top,
+        .sticky,
+        .fixed-top,
+        .fixed-bottom {
+          visibility: hidden !important;
+        }
+        
+        
+        ${selectedElementExclusion}
       `;
       document.head.appendChild(this.hoverDisableStyle);
     }
+    
+    // Store and hide elements with computed fixed position
+    this.hiddenFixedElements = [];
+    const allElements = document.querySelectorAll('*');
+    
+    allElements.forEach(element => {
+      
+      // Don't hide if this element is the selected element or contains it
+      if (this.selectedElement) {
+        if (element === this.selectedElement || 
+            element.contains(this.selectedElement) || 
+            this.selectedElement.contains(element)) {
+          return; // Skip selected element and its ancestors/descendants
+        }
+      }
+      
+      const computedStyle = window.getComputedStyle(element);
+      if (computedStyle.position === 'fixed' || computedStyle.position === 'sticky') {
+        this.hiddenFixedElements.push({
+          element: element,
+          originalVisibility: element.style.visibility
+        });
+        element.style.visibility = 'hidden';
+      }
+    });
   }
 
   enableHoverEffects() {
@@ -435,6 +628,116 @@ class DOMElementSelector {
     if (this.hoverDisableStyle && this.hoverDisableStyle.parentNode) {
       this.hoverDisableStyle.parentNode.removeChild(this.hoverDisableStyle);
       this.hoverDisableStyle = null;
+    }
+    
+    // Remove the preserve class from selected element
+    if (this.preserveClass && this.selectedElement) {
+      this.selectedElement.classList.remove(this.preserveClass);
+      this.preserveClass = null;
+    }
+    
+    // Restore visibility of previously hidden fixed elements
+    if (this.hiddenFixedElements) {
+      this.hiddenFixedElements.forEach(item => {
+        if (item.originalVisibility) {
+          item.element.style.visibility = item.originalVisibility;
+        } else {
+          item.element.style.visibility = '';
+        }
+      });
+      this.hiddenFixedElements = [];
+    }
+  }
+
+  captureElementDirectly(elementRect) {
+    // Restore element state first
+    this.selectedElement.classList.add('dom-selector-selected');
+    this.enableHoverEffects();
+    
+    try {
+      // Use dom-to-image approach with html2canvas-like functionality
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      
+      // Set canvas size
+      canvas.width = elementRect.width * dpr;
+      canvas.height = elementRect.height * dpr;
+      
+      // Create SVG with foreign object containing the element
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', elementRect.width);
+      svg.setAttribute('height', elementRect.height);
+      svg.setAttribute('viewBox', `0 0 ${elementRect.width} ${elementRect.height}`);
+      
+      const foreignObject = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+      foreignObject.setAttribute('x', '0');
+      foreignObject.setAttribute('y', '0');
+      foreignObject.setAttribute('width', elementRect.width);
+      foreignObject.setAttribute('height', elementRect.height);
+      
+      // Clone the element and its styles
+      const clonedElement = this.selectedElement.cloneNode(true);
+      
+      // Get computed styles and apply them
+      const computedStyle = window.getComputedStyle(this.selectedElement);
+      const styleStr = Array.from(computedStyle).reduce((str, property) => {
+        return `${str}${property}:${computedStyle.getPropertyValue(property)};`;
+      }, '');
+      
+      clonedElement.style.cssText = styleStr;
+      clonedElement.style.position = 'static';
+      clonedElement.style.transform = 'none';
+      
+      foreignObject.appendChild(clonedElement);
+      svg.appendChild(foreignObject);
+      
+      // Convert SVG to data URL
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgData)}`;
+      
+      // Draw SVG to canvas
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/png');
+        this.downloadViaChrome(dataUrl, `element-screenshot-${Date.now()}.png`);
+        this.clearSelection();
+      };
+      
+      img.onerror = () => {
+        // Fallback: create a simple colored rectangle
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#333';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Element Screenshot', canvas.width / 2, canvas.height / 2);
+        
+        const dataUrl = canvas.toDataURL('image/png');
+        this.downloadViaChrome(dataUrl, `element-screenshot-${Date.now()}.png`);
+        this.clearSelection();
+      };
+      
+      img.src = svgDataUrl;
+      
+    } catch (error) {
+      // Final fallback: download a placeholder
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 400;
+      canvas.height = 300;
+      
+      ctx.fillStyle = '#5dade2';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Screenshot Captured', canvas.width / 2, canvas.height / 2);
+      
+      const dataUrl = canvas.toDataURL('image/png');
+      this.downloadViaChrome(dataUrl, `element-screenshot-${Date.now()}.png`);
+      this.clearSelection();
     }
   }
 

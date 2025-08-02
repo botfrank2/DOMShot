@@ -7,9 +7,9 @@
 }
 
 .dom-selector-selected {
-  outline: 3px solid #5dade2 !important;
-  outline-offset: 2px !important;
-  box-shadow: inset 0 0 0 3px rgba(93, 173, 226, 0.2) !important;
+  box-shadow: inset 0 0 0 3px #5dade2 !important;
+  position: relative !important;
+  z-index: 2147483647 !important;
 }
 
 .dom-selector-tooltip {
@@ -120,7 +120,7 @@
 }
 
 input:checked + .slider {
-  background-color: #5dade2;
+  background-color: #FF464F;
 }
 
 input:checked + .slider:before {

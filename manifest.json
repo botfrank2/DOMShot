@@ -11,8 +11,7 @@
   },
   "permissions": [
     "activeTab",
-    "downloads",
-    "tabs"
+    "downloads"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -39,7 +38,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["DOMShot.svg"],
+      "resources": ["DOMShot.svg", "domshot-vertical-logo.svg"],
       "matches": ["<all_urls>"]
     }
   ]
